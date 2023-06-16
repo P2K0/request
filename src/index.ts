@@ -1,5 +1,7 @@
 import Request from "./core/core";
 
-export default Request;
+import { tipKey } from "./utils/utils";
 
+export default Request;
 export * from "axios";
+export { tipKey };

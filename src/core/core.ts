@@ -1,64 +1,113 @@
 import axios from "axios";
 
-import type { AxiosInstance, AxiosResponse, CancelTokenSource } from "axios";
 import type {
-  customAxiosDownloadSteamConfig,
-  customAxiosRequestConfig,
-  customInternalAxiosRequestConfig,
-  interceptorsMap,
-  requestMethods
+  AxiosError,
+  AxiosInstance,
+  AxiosResponse,
+  CancelTokenSource,
+  CustomAxiosDownloadSteamConfig,
+  CustomAxiosRequestConfig,
+  CustomAxiosResponse,
+  CustomInternalAxiosRequestConfig,
+  ErrorType,
+  IRequest,
+  InterceptorsMap
 } from "../types/types";
 
-import { defaultConfig, isBrowser } from "../utils/utils";
+import { createTipsMap, defaultConfig, errorFn, isBrowser, runQueue } from "../utils/utils";
 
-class Request implements requestMethods {
+class Request implements IRequest {
   private readonly instance: AxiosInstance;
-  private readonly interceptors: interceptorsMap;
+  private readonly interceptors: InterceptorsMap;
   private readonly cancelTokenSourceMap: Map<string, CancelTokenSource>;
   private backupConfig: any;
 
-  constructor({ interceptors = {}, ...config }: customAxiosRequestConfig) {
+  constructor(config: CustomAxiosRequestConfig) {
     this.instance = axios.create(config);
 
-    this.interceptors = { ...defaultConfig, ...interceptors };
+    this.interceptors = defaultConfig;
     this.cancelTokenSourceMap = new Map();
 
     this.useCustomInterceptors();
   }
 
-  post<T = any>(config: customAxiosRequestConfig<T>): Promise<T> {
+  before(callback: (config: CustomInternalAxiosRequestConfig) => CustomInternalAxiosRequestConfig): Request {
+    this.interceptors.before.push(callback);
+
+    return this;
+  }
+
+  after(callback: (res: CustomAxiosResponse) => CustomAxiosResponse): Request {
+    this.interceptors.after.push(callback);
+
+    return this;
+  }
+
+  error(callback: (res: AxiosError) => void): Request {
+    this.interceptors.error.push(callback);
+
+    return this;
+  }
+
+  finally(callback: (err: AxiosError, res: CustomAxiosResponse) => void): Request {
+    this.interceptors.finally.push(callback);
+
+    return this;
+  }
+
+  post<T = any>(config: CustomAxiosRequestConfig): Promise<T> {
     return this.request({ ...config, method: "post" });
   }
 
-  put<T = any>(config: customAxiosRequestConfig<T>): Promise<T> {
+  put<T = any>(config: CustomAxiosRequestConfig): Promise<T> {
     return this.request({ ...config, method: "put" });
   }
 
-  patch<T = any>(config: customAxiosRequestConfig<T>): Promise<T> {
+  patch<T = any>(config: CustomAxiosRequestConfig): Promise<T> {
     return this.request({ ...config, method: "patch" });
   }
 
-  get<T = any>(config: customAxiosRequestConfig<T>): Promise<T> {
+  get<T = any>(config: CustomAxiosRequestConfig): Promise<T> {
     return this.request({ ...config, method: "get" });
   }
 
-  delete<T = any>(config: customAxiosRequestConfig<T>): Promise<T> {
+  delete<T = any>(config: CustomAxiosRequestConfig): Promise<T> {
     return this.request({ ...config, method: "delete" });
   }
 
-  head<T = any>(config: customAxiosRequestConfig<T>): Promise<T> {
+  head<T = any>(config: CustomAxiosRequestConfig): Promise<T> {
     return this.request({ ...config, method: "head" });
   }
 
-  options<T = any>(config: customAxiosRequestConfig<T>): Promise<T> {
+  options<T = any>(config: CustomAxiosRequestConfig): Promise<T> {
     return this.request({ ...config, method: "options" });
   }
 
-  async downloadSteam(config: customAxiosDownloadSteamConfig): Promise<void> {
-    return isBrowser ? await this.browserDownloadSteam(config) : await this.nodeDownloadSteam(config);
+  async downloadSteam(config: CustomAxiosDownloadSteamConfig): Promise<void | ErrorType> {
+    return isBrowser() ? await this.browserDownloadSteam(config) : await this.nodeDownloadSteam(config);
   }
 
-  private async browserDownloadSteam(config: customAxiosDownloadSteamConfig): Promise<void> {
+  async request<T = any>(config: CustomAxiosRequestConfig): Promise<T> {
+    const cancelFlag: string | null = this.useCancelableRequest(config);
+    let backError;
+
+    try {
+      return await this.instance.request<any, T>(config);
+    }
+    catch (error: ErrorType) {
+      backError = error;
+      for await (const cb of this.interceptors.error) cb(error);
+
+      return error;
+    }
+    finally {
+      cancelFlag && this.cancelTokenSourceMap.delete(cancelFlag);
+
+      for await (const cb of this.interceptors.finally) cb(backError, this.backupConfig);
+    }
+  }
+
+  private async browserDownloadSteam(config: CustomAxiosDownloadSteamConfig): Promise<void | ErrorType> {
     const cancelFlag: string | null = this.useCancelableRequest(config);
 
     try {
@@ -71,12 +120,15 @@ class Request implements requestMethods {
       link.click();
       document.body.removeChild(link);
     }
+    catch (error: ErrorType) {
+      return error;
+    }
     finally {
       cancelFlag && this.cancelTokenSourceMap.delete(cancelFlag);
     }
   }
 
-  private async nodeDownloadSteam(config: customAxiosDownloadSteamConfig): Promise<void> {
+  private async nodeDownloadSteam(config: CustomAxiosDownloadSteamConfig): Promise<void | ErrorType> {
     /* eslint-disable @typescript-eslint/no-var-requires */
     const fs = require("node:fs");
     const path = require("node:path");
@@ -88,58 +140,57 @@ class Request implements requestMethods {
     const cancelFlag: string | null = this.useCancelableRequest(config);
 
     try {
-      const res: AxiosResponse<NodeJS.ReadableStream> = await this.instance.request({ ...config, responseType: "stream" });
-      const downloadPath = path.join(__dirname, "/download", config.filename);
+      const res: AxiosResponse<NodeJS.ReadableStream> = await this.instance.request({
+        ...config,
+        responseType: "stream"
+      });
+      const downloadPath = config.filePath || path.join(__dirname, "/downloads", config.filename);
       const writer = fs.createWriteStream(downloadPath);
       await pipeline(res.data, writer);
     }
-    finally {
-      cancelFlag && this.cancelTokenSourceMap.delete(cancelFlag);
-    }
-  }
-
-  private async request<T = any>({ interceptors = {}, ...config }: customAxiosRequestConfig<T>): Promise<T> {
-    const cancelFlag: string | null = this.useCancelableRequest(config);
-
-    try {
-      if (interceptors.before)
-        config = interceptors.before(config as customInternalAxiosRequestConfig);
-
-      let res: T = await this.instance.request<any, T>(config);
-
-      if (interceptors.after)
-        res = interceptors.after(res);
-
-      return res;
+    catch (error: ErrorType) {
+      return error;
     }
     finally {
       cancelFlag && this.cancelTokenSourceMap.delete(cancelFlag);
-
-      if (interceptors.final)
-        interceptors.final(this.backupConfig);
-
-      if (this.interceptors.final)
-        this.interceptors.final(this.backupConfig);
     }
   }
 
   private useCustomInterceptors(): void {
-    const { interceptors: { before, after, error } } = this;
+    const {
+      instance: {
+        interceptors: { request, response }
+      },
+      interceptors: { before, after }
+    } = this;
+
+    request.use((config) => {
+      const result: CustomInternalAxiosRequestConfig | undefined | null = runQueue<CustomInternalAxiosRequestConfig>(
+        before,
+        config
+      );
+
+      return result || Promise.reject(Object.assign(config, createTipsMap("未通过前置拦截")));
+    }, errorFn);
+
+    response.use((config) => {
+      const result: CustomAxiosResponse | undefined | null = runQueue<CustomAxiosResponse>(after, config);
+
+      return result || Promise.reject(Object.assign(config, createTipsMap("未通过后置拦截")));
+    }, errorFn);
 
     this.backupConfigInterceptors();
-
-    this.instance.interceptors.request.use(before, error);
-    this.instance.interceptors.response.use(after, error);
   }
 
   private backupConfigInterceptors(): void {
-    this.instance.interceptors.response.use((res) => {
-      this.backupConfig = res;
-      return res;
-    }, this.interceptors.error);
+    this.instance.interceptors.response.use((backup) => {
+      this.backupConfig = backup;
+
+      return backup;
+    }, errorFn);
   }
 
-  private useCancelableRequest(config: customAxiosRequestConfig): string | null {
+  private useCancelableRequest(config: CustomAxiosRequestConfig): string | null {
     const cancelFlag: string = JSON.stringify(config);
 
     if (!config.cancelable)

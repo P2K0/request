@@ -1,19 +1,13 @@
 {
   "name": "@p2k0/request",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "这是一个基于 axios 封装的类，支持 TypeScript，提供了诸如 get、post、put、patch、delete、head、options、downloadSteam 等方法，还实现了拦截器、回调和取消重复请求等功能。",
-  "main": "./dist/index.cjs.ts",
-  "module": "./dist/index.es.js",
-  "typings": "./dist/index.d.ts",
   "author": "p2k0",
   "license": "ISC",
-  "dependencies": {
-    "axios": "^1.3.5"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/P2K0/request.git"
   },
-  "files": [
-    "*",
-    "!src/**"
-  ],
   "keywords": [
     "xhr",
     "http",
@@ -21,5 +15,16 @@
     "axios",
     "promise",
     "node"
-  ]
+  ],
+  "main": "./dist/index.cjs.js",
+  "module": "./dist/index.mjs",
+  "browser": "dist/index.amd.js",
+  "typings": "./dist/index.d.ts",
+  "files": [
+    "*",
+    "!src/**"
+  ],
+  "dependencies": {
+    "axios": "^1.3.5"
+  }
 }

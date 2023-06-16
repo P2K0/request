@@ -1,33 +1,89 @@
-import type { AxiosError, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from "axios";
+import type {
+  AxiosError,
+  AxiosInstance,
+  AxiosRequestConfig,
+  AxiosResponse,
+  CancelTokenSource,
+  InternalAxiosRequestConfig
+} from "axios";
 
-export interface interceptorsMap<T = AxiosResponse> {
-  before?: (config: customInternalAxiosRequestConfig) => customInternalAxiosRequestConfig
-  after?: (res: T) => T
-  error?: (err: AxiosError) => void
-  final?: (res: T) => void
+interface AnyMap {
+  [key: string | number | symbol]: any
 }
 
-export interface customInternalAxiosRequestConfig extends InternalAxiosRequestConfig {
-  [key: string]: any
-}
-
-export interface customAxiosRequestConfig<T = AxiosResponse> extends AxiosRequestConfig {
-  interceptors?: interceptorsMap<T>
+interface CancelableMap {
   cancelable?: Boolean
 }
 
-export interface customAxiosDownloadSteamConfig<T = AxiosResponse> extends AxiosRequestConfig {
-  cancelable?: Boolean
+interface CustomInternalAxiosRequestConfig extends InternalAxiosRequestConfig, AnyMap {
+}
+
+interface CustomAxiosResponse extends AxiosResponse, AnyMap {
+}
+
+interface CustomAxiosRequestConfig extends AxiosRequestConfig, CancelableMap {
+}
+
+interface CustomAxiosDownloadSteamConfig extends AxiosRequestConfig, CancelableMap {
   filename: string
+  filePath?: string
 }
 
-export interface requestMethods {
-  post<T = any>(config: customAxiosRequestConfig<T>): Promise<T>
-  put<T = any>(config: customAxiosRequestConfig<T>): Promise<T>
-  patch<T = any>(config: customAxiosRequestConfig<T>): Promise<T>
-  get<T = any>(config: customAxiosRequestConfig<T>): Promise<T>
-  delete<T = any>(config: customAxiosRequestConfig<T>): Promise<T>
-  head<T = any>(config: customAxiosRequestConfig<T>): Promise<T>
-  options<T = any>(config: customAxiosRequestConfig<T>): Promise<T>
-  downloadSteam(config: customAxiosDownloadSteamConfig): Promise<void>
+interface InterceptorsMap<T = CustomAxiosResponse> {
+  before: ((config: CustomInternalAxiosRequestConfig) => CustomInternalAxiosRequestConfig)[]
+
+  after: ((res: T) => T)[]
+
+  error: ((err: AxiosError) => void)[]
+
+  finally: ((err: AxiosError, res: T) => void)[]
 }
+
+interface RequestMethods {
+  request<T = any>(config: CustomAxiosRequestConfig): Promise<T>
+
+  get<T = any>(config: CustomAxiosRequestConfig): Promise<T>
+
+  post<T = any>(config: CustomAxiosRequestConfig): Promise<T>
+
+  put<T = any>(config: CustomAxiosRequestConfig): Promise<T>
+
+  patch<T = any>(config: CustomAxiosRequestConfig): Promise<T>
+
+  delete<T = any>(config: CustomAxiosRequestConfig): Promise<T>
+
+  head<T = any>(config: CustomAxiosRequestConfig): Promise<T>
+
+  options<T = any>(config: CustomAxiosRequestConfig): Promise<T>
+
+  downloadSteam(config: CustomAxiosDownloadSteamConfig): Promise<void>
+}
+
+interface IRequest extends RequestMethods {
+  before(callback: (config: CustomInternalAxiosRequestConfig) => CustomInternalAxiosRequestConfig): IRequest
+
+  after(callback: (res: CustomAxiosResponse) => CustomAxiosResponse): IRequest
+
+  error(callback: (err: AxiosError) => void): IRequest
+
+  finally(callback: (err: AxiosError, res: CustomAxiosResponse) => void): IRequest
+}
+
+type ErrorType = AxiosError | Error | any;
+
+export type {
+  AnyMap,
+  AxiosError,
+  AxiosInstance,
+  AxiosResponse,
+  CancelableMap,
+  CancelTokenSource,
+  CustomAxiosDownloadSteamConfig,
+  CustomAxiosRequestConfig,
+  CustomAxiosResponse,
+  CustomInternalAxiosRequestConfig,
+  ErrorType,
+  InterceptorsMap,
+  IRequest,
+  RequestMethods
+};

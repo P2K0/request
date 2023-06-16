@@ -1,5 +1,11 @@
 # @p2k0/request
 
+## 0.2.0
+
+### Minor Changes
+
+- chore: 改为链式调用 api 变更
+
 ## 0.1.1
 
 ### Patch Changes
