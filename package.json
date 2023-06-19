@@ -1,6 +1,6 @@
 {
   "name": "@p2k0/request",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "这是一个基于 axios 封装的类，支持 TypeScript，提供了诸如 get、post、put、patch、delete、head、options、downloadSteam 等方法，还实现了拦截器、回调和取消重复请求等功能。",
   "author": "p2k0",
   "license": "ISC",

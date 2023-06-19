@@ -1,5 +1,11 @@
 # @p2k0/request
 
+## 0.2.2
+
+### Patch Changes
+
+- fix: node 环境下使用 downloadSteam 下载 指定了 filePath 下载报错
+
 ## 0.2.1
 
 ### Patch Changes

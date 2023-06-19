@@ -130,13 +130,13 @@ class Request implements IRequest {
 
   private async nodeDownloadSteam(config: CustomAxiosDownloadSteamConfig): Promise<void> {
     /* eslint-disable @typescript-eslint/no-var-requires */
-    const fs = require("node:fs");
-    const path = require("node:path");
-    const stream = require("node:stream");
-    const util = require("node:util");
-    const pipeline = util.promisify(stream.pipeline);
+    const { createWriteStream, existsSync, mkdirSync } = require("node:fs");
+    const { join, dirname } = require("node:path");
+    const { pipeline } = require("node:stream");
+    const { promisify } = require("node:util");
     /* eslint-enable @typescript-eslint/no-var-requires */
 
+    const pipelinePromise = promisify(pipeline);
     const cancelFlag: string | null = this.useCancelableRequest(config);
 
     try {
@@ -144,9 +144,14 @@ class Request implements IRequest {
         ...config,
         responseType: "stream"
       });
-      const downloadPath = config.filePath || path.join(__dirname, "/downloads", config.filename);
-      const writer = fs.createWriteStream(downloadPath);
-      await pipeline(res.data, writer);
+
+      const defaultFilePath = join(process.cwd(), "/downloads");
+      const targetPath = join(config.filePath ?? defaultFilePath, config.filename);
+
+      !existsSync(targetPath) && mkdirSync(dirname(targetPath), { recursive: true });
+
+      const writer = createWriteStream(targetPath);
+      await pipelinePromise(res?.data, writer);
     }
     catch (error: ErrorType) {
       throw new Error(error);
