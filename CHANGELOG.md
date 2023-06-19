@@ -1,5 +1,11 @@
 # @p2k0/request
 
+## 0.2.1
+
+### Patch Changes
+
+- fix: 异步错误时 没有往上抛出异常
+
 ## 0.2.0
 
 ### Minor Changes

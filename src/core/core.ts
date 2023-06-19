@@ -98,7 +98,7 @@ class Request implements IRequest {
       backError = error;
       for await (const cb of this.interceptors.error) cb(error);
 
-      return error;
+      throw new Error(error);
     }
     finally {
       cancelFlag && this.cancelTokenSourceMap.delete(cancelFlag);
@@ -107,7 +107,7 @@ class Request implements IRequest {
     }
   }
 
-  private async browserDownloadSteam(config: CustomAxiosDownloadSteamConfig): Promise<void | ErrorType> {
+  private async browserDownloadSteam(config: CustomAxiosDownloadSteamConfig): Promise<void> {
     const cancelFlag: string | null = this.useCancelableRequest(config);
 
     try {
@@ -121,14 +121,14 @@ class Request implements IRequest {
       document.body.removeChild(link);
     }
     catch (error: ErrorType) {
-      return error;
+      throw new Error(error);
     }
     finally {
       cancelFlag && this.cancelTokenSourceMap.delete(cancelFlag);
     }
   }
 
-  private async nodeDownloadSteam(config: CustomAxiosDownloadSteamConfig): Promise<void | ErrorType> {
+  private async nodeDownloadSteam(config: CustomAxiosDownloadSteamConfig): Promise<void> {
     /* eslint-disable @typescript-eslint/no-var-requires */
     const fs = require("node:fs");
     const path = require("node:path");
@@ -149,7 +149,7 @@ class Request implements IRequest {
       await pipeline(res.data, writer);
     }
     catch (error: ErrorType) {
-      return error;
+      throw new Error(error);
     }
     finally {
       cancelFlag && this.cancelTokenSourceMap.delete(cancelFlag);
