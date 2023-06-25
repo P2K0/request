@@ -1,5 +1,11 @@
 # @p2k0/request
 
+## 0.2.3
+
+### Patch Changes
+
+- chore: update version to fix dist/d.ts
+
 ## 0.2.2
 
 ### Patch Changes
